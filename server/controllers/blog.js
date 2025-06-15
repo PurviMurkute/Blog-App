@@ -30,16 +30,49 @@ const postBlogs = async (req, res) => {
 };
 
 const getBlogs = async (req, res) => {
-    const allBlogs = await BlogPost.find();
+  const author = req.user?._id; //here safe navigation operator (?) is used that if user then give id else dont
 
-    return res.status(200).json({
-        success: true,
-        data: allBlogs,
-        message: "Blogs fetched successfully" 
-    })
-}
+  //if author is not provided, fetch all published blog
+  //if author id is provided, fetch all published blogs and authors draft blogs also
 
-export { 
-    postBlogs,
-    getBlogs
- };
+  /* const allBlogs = await BlogPost.find();
+
+    const filteredBlogs = allBlogs.filter((blog) => {
+      if(blog.status === "published"){
+        return true;
+      }else if(author && blog.author.toString() === author.toString()){
+        return true;
+      }else{
+        return false;
+      }
+    }) */
+
+      let blogs = [];
+
+      if(author){
+        blogs = await BlogPost.find({
+          $or: [
+            {status: "published"},
+            {status: "draft", author}
+          ]
+        }).populate("author", "_id name email")
+      }else{
+        blogs = await BlogPost.find({status: "published"}).populate("author", "_id name email")
+      }
+
+  if (blogs.length === 0) {
+    return res.status(404).json({
+      success: false,
+      data: null,
+      message: "No blogs found",
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    data: blogs,
+    message: "Blogs fetched successfully",
+  });
+};
+
+export { postBlogs, getBlogs };
